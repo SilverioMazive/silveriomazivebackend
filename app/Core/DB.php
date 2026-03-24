@@ -3,7 +3,7 @@
 namespace Core;
 
 use PDO;
-use App\Config\Config;
+use Config\Config;
 
 class DB
 {
