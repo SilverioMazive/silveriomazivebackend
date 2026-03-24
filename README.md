@@ -1,15 +1,11 @@
 ```markdown
-# silveriomazivebackend - Dynamic ORM with Meta and Versioning (PHP)
-
-Absolutely! We can update your **Description** section to explicitly highlight that your backend supports **NoSQL-like flexibility** on top of SQL, allowing easy scaling without modifying table columns. Here's a polished version:
-
----
+# SilverioMaziveBackend - Dynamic ORM with Meta and Versioning (PHP)
 
 ## Description
 
-**SilverioMaziveBackend** is a minimal PHP backend that implements a **dynamic ORM** based on "meta" tables.
+**SilverioMaziveBackend** is a minimal PHP backend implementing a **dynamic ORM** based on "meta" tables.
 
-It provides flexible, schema-less data storage inside SQL databases by using `meta_key` and `meta_value` (JSON) fields, making it behave like a **NoSQL or vertical database** within a relational database.
+It provides flexible, schema-less data storage inside SQL databases by using `meta_key` and `meta_value` (JSON) fields, making it behave like a **NoSQL-like layer** on top of SQL.
 
 Main features:
 
@@ -19,17 +15,63 @@ Main features:
 * Soft delete by changing `meta_key`
 * Automatic backup/versioning of records before updates
 * RESTful JSON endpoints for easy integration
+* App-level security via `X-AppCode` header
+* Centralized configuration via `App\Config\Config.php`
 * Easy to scale: new fields can be added to records without altering table columns
 
-This design makes it simple to **expand your project** without requiring migrations every time a new property is needed. Developers can add new attributes directly into `meta_value` JSON objects.
+This design allows developers to **expand the project without migrations**, adding attributes directly in `meta_value` JSON objects.
 
+---
+
+## Configuration
+
+All application settings are centralized in:
+
+```
+
+app/Config/Config.php
+
+````
+
+Example:
+
+```php
+<?php
+namespace App\Config;
+
+class Config
+{
+    // App authentication code (required in headers)
+    public const APP_CODE = 'MEU_APP_CODE_SECRETO_123';
+
+    // Database configuration
+    public const DB_HOST = 'localhost';
+    public const DB_NAME = 'yourdatabase';
+    public const DB_USER = 'root';
+    public const DB_PASS = '';
+    public const DB_CHARSET = 'utf8mb4';
+
+    // Optional additional settings
+    public const ENVIRONMENT = 'dev';
+    public const TIMEZONE = 'Africa/Maputo';
+}
+````
+
+**Usage in backend:**
+
+* All API requests must include the header:
+
+```
+X-AppCode: MEU_APP_CODE_SECRETO_123
+```
+
+* Database connections automatically use the `Config` class via `Core\DB`.
 
 ---
 
 ## Project Structure
 
 ```
-
 silveriomazivebackend/
 ├─ app/
 │  ├─ Controllers/
@@ -37,45 +79,31 @@ silveriomazivebackend/
 │  │  └─ MetaController.php
 │  ├─ Models/
 │  │  └─ Meta.php
-│  └─ Core/
-│     ├─ QueryBuilder.php
-│     └─ DB.php -- Define your database credentials
+│  ├─ Core/
+│  │  ├─ QueryBuilder.php
+│  │  └─ DB.php
+│  └─ Config/
+│     └─ Config.php
 ├─ helpers/
 │  └─ helpers.php
 ├─ index.php
 └─ README.md
+```
 
-````
+**Folders explained:**
 
-In the file app\Core\DB.php
-<?php
-namespace Core;
-use PDO;
-
-class DB {
-    public static function conn() {
-        return new PDO(
-            "mysql:host=localhost;dbname=yourdatabase;charset=utf8mb4",
-            "root",
-            "",
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-        );
-    }
-}
-
-Define your database credentials
-
-- **Core/**: Contains `QueryBuilder` and `DB` for dynamic queries and database connection.  
-- **Models/**: Contains `Meta.php` with CRUD and backup logic.  
-- **Controllers/**: Contains `MetaController.php` with REST endpoints.  
-- **helpers/**: Miscellaneous helper functions.  
-- **index.php**: Main router and entry point.
+* **Core/**: `QueryBuilder` and `DB` for dynamic queries and database connection.
+* **Config/**: Application-wide configuration (AppCode, DB credentials, environment, etc.)
+* **Models/**: `Meta.php` with dynamic CRUD, backups, and versioning logic.
+* **Controllers/**: REST endpoints (`MetaController.php`) and base logic (`BaseController.php`).
+* **helpers/**: Miscellaneous helper functions.
+* **index.php**: Main router / entry point.
 
 ---
 
 ## Table Structure
 
-Every table in this system should follow the **same structure**, and there must always be a `backup` table:
+Every table in this system follows the same structure, and there must always be a `backup` table:
 
 ```sql
 CREATE TABLE IF NOT EXISTS backup (
@@ -85,9 +113,9 @@ CREATE TABLE IF NOT EXISTS backup (
     meta_value JSON,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-````
+```
 
-Example of a table `test` using the same structure:
+Example of a table `test`:
 
 ```sql
 CREATE TABLE IF NOT EXISTS test (
@@ -95,18 +123,21 @@ CREATE TABLE IF NOT EXISTS test (
     userId INT NOT NULL,
     meta_key VARCHAR(255) NOT NULL,
     meta_value JSON,
+    appcode VARCHAR(255) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-* Users can create **any number of tables** with the same structure.
-* The `backup` table stores **previous versions** of records for auditing.
+> Note: The `appcode` column ensures multi-app isolation if needed in the future.
+
+* Users can create **any number of tables** with this structure.
+* The `backup` table stores **previous versions** for auditing.
 
 ---
 
 ## Endpoints
 
-All endpoints require the query string `?table=table_name`.
+All endpoints require the `?table=table_name` query string **and** the `X-AppCode` header.
 
 | Method | Endpoint                 | Description                                        |
 | ------ | ------------------------ | -------------------------------------------------- |
@@ -122,6 +153,17 @@ All endpoints require the query string `?table=table_name`.
 | POST   | `/meta/search`           | Search records using `meta_value.*` filters (JSON) |
 
 ---
+
+## Security & Notes
+
+* All endpoints **require the correct `X-AppCode` header**. Requests without it will return `400/403`.
+* All database credentials are centralized in `App\Config\Config.php`.
+* The system supports **dynamic, schema-less fields** via `meta_value` (JSON).
+* Soft deletes and versioning are handled automatically via `meta_key` manipulation and backup tables.
+* To scale or add new attributes, just add fields to `meta_value` JSON — **no migrations required**.
+
+```
+
 
 ## Examples
 

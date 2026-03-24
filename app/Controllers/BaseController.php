@@ -2,35 +2,55 @@
 
 namespace Controllers;
 
+use App\Config\Config;
+
 class BaseController
 {
     protected string $table;
+    protected string $appcode;
 
     public function __construct()
     {
+        $this->appcode = $this->resolveAppCode();
         $this->table = $this->resolveTable();
     }
 
-    // Pega a tabela do endpoint
+    protected function resolveAppCode(): string
+    {
+        $headers = getallheaders();
+        $appcode = $headers['X-AppCode'] ?? null;
+
+        if (!$appcode) {
+            $this->json(["error" => "X-AppCode header is required"], 400);
+        }
+
+        if (!preg_match('/^[a-zA-Z0-9_-]+$/', $appcode)) {
+            $this->json(["error" => "invalid appcode"], 400);
+        }
+
+        // ✅ compara com o AppCode da classe Config
+        if ($appcode !== Config::APP_CODE) {
+            $this->json(["error" => "unauthorized appcode"], 403);
+        }
+
+        return $appcode;
+    }
+
     protected function resolveTable(): string
     {
         $table = $_GET['table'] ?? null;
 
         if (!$table) {
-            $this->json(["error" => "table parameter is required"]);
-            exit;
+            $this->json(["error" => "table parameter is required"], 400);
         }
 
-        // segurança (evita SQL injection via nome de tabela)
         if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
-            $this->json(["error" => "invalid table name"]);
-            exit;
+            $this->json(["error" => "invalid table name"], 400);
         }
 
         return $table;
     }
 
-    // resposta JSON padrão
     protected function json($data, int $code = 200): void
     {
         http_response_code($code);
